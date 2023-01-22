@@ -256,6 +256,7 @@ if __name__ == "__main__":
 
     cv2.startWindowThread()
     cv2.namedWindow(preview_name)
+    cv2.namedWindow("Message")
 
     # logger = logging.getLogger('websockets')
     # logger.setLevel(logging.DEBUG)

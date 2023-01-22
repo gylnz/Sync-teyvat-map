@@ -3,7 +3,8 @@ const sock = new WebSocket('ws://localhost:27900')
 const playImgURL = chrome.runtime.getURL('img/play.png')
 const stopImgURL = chrome.runtime.getURL('img/stop.png')
 const twitterIconURL = chrome.runtime.getURL('img/twitter-icon.png')
-let pauseSyncFlag = false
+const pinpointImgURL = chrome.runtime.getURL('img/pinpoint.png')
+let pauseSyncFlag = true
 let oldDimension = "2"
 let updateInterval = 4000
 let intervalId = setInterval(() => {}, 1000)
@@ -28,13 +29,21 @@ const setUp = () =>{
       }
     })
     $("div.mhy-map__action-btns").append($.parseHTML(`
-      <div id="user-guide-sync" class="mhy-map__action-btn mhy-map__action-btn--routes DeveloperTwitter">
-      <img src="${twitterIconURL}" class="action-btn__btn-pic">
-      <div class="tooltip tooltip--left">開発者のTwitter</div>
+      <div id="user-guide-sync" class="mhy-map__action-btn mhy-map__action-btn--routes Pinpoint">
+      <img src="${pinpointImgURL}" class="action-btn__btn-pic">
+      <div class="tooltip tooltip--left">Match current location</div>
     </div>`))
-    $("div.DeveloperTwitter").on('click', ()=> {
-      window.open('https://twitter.com/rollphes')
+    $("div.Pinpoint").on('click', ()=> {
+      sock.send(location.hash.slice(6, 7))
     })
+    // $("div.mhy-map__action-btns").append($.parseHTML(`
+    //   <div id="user-guide-sync" class="mhy-map__action-btn mhy-map__action-btn--routes DeveloperTwitter">
+    //   <img src="${twitterIconURL}" class="action-btn__btn-pic">
+    //   <div class="tooltip tooltip--left">開発者のTwitter</div>
+    // </div>`))
+    // $("div.DeveloperTwitter").on('click', ()=> {
+    //   window.open('https://twitter.com/rollphes')
+    // })
   }, 2000)
 }
 setUp()
@@ -48,6 +57,7 @@ setInterval(()=>{
 },1000)
 
 sock.addEventListener('open', (e) => {
+  if (pauseSyncFlag) return
    intervalId = setInterval(() => {
     sock.send(location.hash.slice(6, 7))
    }, updateInterval)

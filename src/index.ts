@@ -22,8 +22,8 @@ class ServerProcess {
   }
 
   start() {
-    this.proc = spawn(homePath + 'python\\venv\\Scripts\\python.exe',
-        [homePath + 'python\\server.py'], {cwd: homePath + 'python'});
+    this.proc = spawn(resourcesPath + 'python\\venv\\Scripts\\python.exe',
+        [resourcesPath + 'python\\server.py'], {cwd: resourcesPath + 'python'});
     this.proc.stdout.on('data', (data: Buffer) => {
       let str = data.toString().replace(/\r?\n$/, "")
       console.log(str);
@@ -90,7 +90,7 @@ const deploy = async () => {
   //win.setMenu(null)
   win.webContents.openDevTools()
 
-  void autoUpdater.checkForUpdatesAndNotify()
+  //void autoUpdater.checkForUpdatesAndNotify()
   autoUpdater.on('update-downloaded', (info) => {
     void dialog
       .showMessageBox(win, {
