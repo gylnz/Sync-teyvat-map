@@ -1,3 +1,4 @@
+// @ts-ignore
 import * as cv from '@u4/opencv4nodejs'
 import * as fs from 'fs'
 const homePath = __dirname.split('dist')[0]

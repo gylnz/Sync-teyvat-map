@@ -1,10 +1,11 @@
-const sock = new WebSocket('ws://127.0.0.1:27900')
+const sock = new WebSocket('ws://localhost:27900')
 
-const playImgURL = chrome.extension.getURL('img/play.png')
-const stopImgURL = chrome.extension.getURL('img/stop.png')
-const twitterIconURL = chrome.extension.getURL('img/twitter-icon.png')
+const playImgURL = chrome.runtime.getURL('img/play.png')
+const stopImgURL = chrome.runtime.getURL('img/stop.png')
+const twitterIconURL = chrome.runtime.getURL('img/twitter-icon.png')
 let pauseSyncFlag = false
 let oldDimension = "2"
+let updateInterval = 2000
 let intervalId = setInterval(() => {}, 1000)
 
 const setUp = () =>{
@@ -13,7 +14,7 @@ const setUp = () =>{
     $("div.mhy-map__action-btns").append($.parseHTML(`
       <div id="user-guide-sync" class="mhy-map__action-btn mhy-map__action-btn--routes toggleSync">
       <img src="${pauseSyncFlag?playImgURL:stopImgURL}" class="action-btn__btn-pic">
-      <div class="tooltip tooltip--left">同期切替</div>
+      <div class="tooltip tooltip--left">Auto Switch</div>
     </div>`))
     $("div.toggleSync").on('click', ()=> {
       pauseSyncFlag = pauseSyncFlag?false:true
@@ -23,7 +24,7 @@ const setUp = () =>{
       }else{
         intervalId = setInterval(() => {
           sock.send(location.hash.slice(6, 7))
-        }, 2000)
+        }, updateInterval)
       }
     })
     $("div.mhy-map__action-btns").append($.parseHTML(`
@@ -49,7 +50,7 @@ setInterval(()=>{
 sock.addEventListener('open', (e) => {
    intervalId = setInterval(() => {
     sock.send(location.hash.slice(6, 7))
-   }, 2000)
+   }, updateInterval)
 })
 
 sock.addEventListener('message', (e) => {

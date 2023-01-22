@@ -1,9 +1,28 @@
+// @ts-ignore
 import * as opencvBuild from '@u4/opencv-build'
+// @ts-ignore
 import * as cv from '@u4/opencv4nodejs'
+// @ts-ignore
 import { AKAZEDetector, Vec2 } from '@u4/opencv4nodejs'
 import * as fs from 'fs'
 import screenshot from 'screenshot-desktop'
 import { WebSocket, WebSocketServer } from 'ws'
+
+console.log = (function() {
+  const console_log = console.log;
+  const timeStart = new Date().getTime();
+
+  return function() {
+    const delta = new Date().getTime() - timeStart;
+    const args = [];
+    args.push((delta / 1000).toFixed(2) + ':');
+    for(let i = 0; i < arguments.length; i++) {
+      args.push(arguments[i]);
+    }
+    console_log.apply(console, args);
+  };
+})();
+
 
 process.env.OPENCV_BIN_DIR = new opencvBuild.OpenCVBuildEnv().opencvBinDir
 process.env.path += ';' + new opencvBuild.OpenCVBuildEnv().opencvBinDir
@@ -44,6 +63,12 @@ const dimensions: { [key in number]: Dimension } = {
 }
 let clientDimension = '2'
 
+const showCapture = async (image: any) => {
+  // cv.imshowAsync("capture", image).then(() => {
+  //   cv.waitKey()
+  // })
+}
+
 const findMap = async (dimension: Dimension) => {
   await screenshot({ filename: resourcesPath + 'img\\t.png' })
   const targetImgOri = await cv.imreadAsync(
@@ -52,11 +77,13 @@ const findMap = async (dimension: Dimension) => {
   )
   const region = new cv.Rect(
     Math.floor(targetImgOri.cols * 0.03125),
-    Math.floor(targetImgOri.rows * 0.01851),
-    Math.floor(targetImgOri.rows * 0.19444),
-    Math.floor(targetImgOri.rows * 0.19444)
+    Math.floor(targetImgOri.rows * 17 / 1080),
+    Math.floor(targetImgOri.rows * 215 / 1080),
+    Math.floor(targetImgOri.rows * 215 / 1080)
   )
-  const targetImg = targetImgOri.getRegion(region).resize(600, 600)
+  const regionImg = targetImgOri.getRegion(region)
+  showCapture(regionImg)
+  const targetImg = regionImg.resize(600, 600)
 
   const targetImgKeyPoints = await akaze.detectAsync(targetImg)
 
@@ -97,7 +124,7 @@ const findMap = async (dimension: Dimension) => {
   if (matches.length === 0) return
   const bestN = 40
   const bestMatches = matches
-    .sort((match1, match2) => match1.distance - match2.distance)
+    .sort((match1: { distance: number }, match2: { distance: number }) => match1.distance - match2.distance)
     .slice(0, bestN)
 
   const resultMatches: cv.DescriptorMatch[] = []
@@ -108,15 +135,15 @@ const findMap = async (dimension: Dimension) => {
     }
     for (let j = i + 1; j < bestMatches.length; j++) {
       if (i == j) continue
-      const mapRad = Math.atan(
-        (mapImgKeyPoints0[bestMatches[i].trainIdx].pt.y -
-          mapImgKeyPoints0[bestMatches[j].trainIdx].pt.y) /
+      const mapRad = Math.atan2(
+          (mapImgKeyPoints0[bestMatches[i].trainIdx].pt.y -
+          mapImgKeyPoints0[bestMatches[j].trainIdx].pt.y),
           (mapImgKeyPoints0[bestMatches[i].trainIdx].pt.x -
             mapImgKeyPoints0[bestMatches[j].trainIdx].pt.x)
       )
-      const targetRad = Math.atan(
-        (targetImgKeyPoints[bestMatches[i].queryIdx].pt.y -
-          targetImgKeyPoints[bestMatches[j].queryIdx].pt.y) /
+      const targetRad = Math.atan2(
+          (targetImgKeyPoints[bestMatches[i].queryIdx].pt.y -
+          targetImgKeyPoints[bestMatches[j].queryIdx].pt.y),
           (targetImgKeyPoints[bestMatches[i].queryIdx].pt.x -
             targetImgKeyPoints[bestMatches[j].queryIdx].pt.x)
       )
@@ -131,7 +158,7 @@ const findMap = async (dimension: Dimension) => {
         minMatches.minDeg = diffDeg
       }
     }
-    if (minMatches.minDeg > 0.1 || minMatches.descriptorMatchsI.distance > 50)
+    if (minMatches.minDeg > 0.2 || minMatches.descriptorMatchsI.distance > 50)
       continue
     resultMatches.push(minMatches.descriptorMatchsI)
     if (
@@ -169,15 +196,30 @@ const findMap = async (dimension: Dimension) => {
       )
     )
   const { x, y } = mapVec2 as Vec2
-  return `center=${Math.floor((y - dimension.y) * 100) / 100},${
+  const ret = `center=${Math.floor((y - dimension.y) * 100) / 100},${
     Math.floor((x - dimension.x) * 100) / 100
   }`
+  return ret
 }
 
+let processing = false
 const sendClient = async (ws: WebSocket, dimension: Dimension) => {
-  const center = await findMap(dimension).catch((e) => {})
-  if (!center) return
-  ws.send(center)
+  console.log(dimension)
+  if (processing) {
+    console.log("SKIP")
+    return
+  }
+  processing = true
+  findMap(dimension)
+      .then((center) => {
+          console.log(center)
+          if (!center) return
+          ws.send(center)
+      })
+      .catch((e) => {})
+      .finally(() => {
+        processing = false;
+      })
 }
 
 wss.on('connection', (ws) => {

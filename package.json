@@ -90,5 +90,11 @@
       "owner": "Rollphes",
       "repo": "Sync-teyvat-map"
     }
+  },
+  "opencv4nodejsx": {
+    "disableAutoBuild": 1,
+    "opencvIncludeDir": "F:\\programs\\sync-teyvat-map\\resources\\app\\node_modules\\@u4\\opencv-build\\opencv-4.5.5-ecae4\\build\\include",
+    "opencvLibDir": "F:\\programs\\sync-teyvat-map\\resources\\app\\node_modules\\@u4\\opencv-build\\opencv-4.5.5-ecae4\\build\\lib",
+    "opencvBinDir": "F:\\programs\\sync-teyvat-map\\resources\\app\\node_modules\\@u4\\opencv-build\\opencv-4.5.5-ecae4\\build\\bin"
   }
 }

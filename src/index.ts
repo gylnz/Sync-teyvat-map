@@ -1,3 +1,4 @@
+// @ts-ignore
 import * as opencvBuild from '@u4/opencv-build'
 import { app, BrowserWindow, dialog, session, shell } from 'electron'
 import * as Log from 'electron-log'
@@ -55,8 +56,8 @@ const deploy = async () => {
       action: 'allow',
     }
   })
-  win.setMenu(null)
-  //win.webContents.openDevTools()
+  //win.setMenu(null)
+  win.webContents.openDevTools()
 
   void autoUpdater.checkForUpdatesAndNotify()
   autoUpdater.on('update-downloaded', (info) => {
