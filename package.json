@@ -2,7 +2,7 @@
   "name": "sync-teyvat-map",
   "version": "1.0.3",
   "main": "dist/index.js",
-  "description": "パイモンが地図動かしてくれるヤツ",
+  "description": "sync-teyvat-map",
   "scripts": {
     "opencv-rebuild": "build-opencv --electron build",
     "electron-rebuild": "electron-rebuild",
@@ -60,7 +60,7 @@
   },
   "build": {
     "appId": "com.electron.test",
-    "productName": "パイモンが地図動かしてくれるヤツ",
+    "productName": "sync-teyvat-map",
     "directories": {
       "output": "release",
       "buildResources": "assets"

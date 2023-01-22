@@ -9,6 +9,7 @@ import math
 import sys
 import logging
 import os
+import cProfile
 
 from windowcapture import WindowCapture
 from typing import List
@@ -33,6 +34,12 @@ class Dimension:
         self.y = y
 
 
+class ImgDescriptor:
+    def __init__(self, keypoint, descriptor: cv2.UMat):
+        self.keypoint = keypoint
+        self.descriptor = descriptor
+
+
 def setup_custom_logger(name):
     formatter = logging.Formatter(fmt='%(asctime)s %(levelname)-8s %(message)s',
                                   datefmt='%Y-%m-%d %H:%M:%S')
@@ -55,6 +62,7 @@ dimensions = {
     7: Dimension("enkanomiya", 1861, 1783),
     9: Dimension("sougan", 2027, 1958)
 }
+descriptors = {}
 clientDimension = '2'
 resources_path = '../'
 
@@ -76,6 +84,25 @@ def txtshow(text: str):
     cv2.imshow("Message", text_image)
     cv2.waitKey(1)
     # cv2.destroyAllWindows()
+
+
+def get_descriptors(name: str) -> ImgDescriptor:
+    if name in descriptors:
+        return descriptors[name]
+
+    # Map Image Keypoints and Descriptors
+    map_img_keypoints_file = open(f"{resources_path}data\\{name}ImgKeyPoints.dat")
+    map_img_keypoints = json.load(map_img_keypoints_file)
+    map_img_keypoints_file.close()
+
+    map_img_descriptors_file = open(f"{resources_path}data\\{name}ImgDescriptors.dat")
+    map_img_descriptors = json.load(map_img_descriptors_file)
+    map_img_descriptors_file.close()
+    map_img_descriptors = np.array(map_img_descriptors, dtype=np.uint8)
+    map_img_descriptors = cv2.UMat(map_img_descriptors)
+
+    descriptors[name] = ImgDescriptor(map_img_keypoints, map_img_descriptors)
+    return descriptors[name]
 
 
 async def find_map(dimension: Dimension):
@@ -100,6 +127,7 @@ async def find_map(dimension: Dimension):
     imshow(preview_name, target_img)
     # asyncio.create_task(imshow_async(preview_name, target_img))
 
+    target_img = cv2.UMat(target_img)
     target_img = cv2.resize(target_img, (600, 600))
 
     # Target Image Keypoints and Descriptors
@@ -107,16 +135,9 @@ async def find_map(dimension: Dimension):
     target_img_keypoints = akaze.detect(target_img)
     target_img_descriptors = akaze.compute(target_img, target_img_keypoints)
 
-    # Map Image Keypoints and Descriptors
-    map_img_keypoints_file = open(f"{resources_path}data\\{dimension.name}ImgKeyPoints.dat")
-    map_img_keypoints = json.load(map_img_keypoints_file)
-    map_img_keypoints_file.close()
-    # map_img_keypoints = np.array(map_img_keypoints, dtype=np.uint8)
-
-    map_img_descriptors_file = open(f"{resources_path}data\\{dimension.name}ImgDescriptors.dat")
-    map_img_descriptors = json.load(map_img_descriptors_file)
-    map_img_descriptors_file.close()
-    map_img_descriptors = np.array(map_img_descriptors, dtype=np.uint8)
+    descriptor = get_descriptors(dimension.name)
+    map_img_keypoints = descriptor.keypoint
+    map_img_descriptors = descriptor.descriptor
 
     # Brute-Force Matcher
     bf = cv2.BFMatcher(cv2.NORM_HAMMING2)
@@ -248,7 +269,14 @@ async def on_message(websocket, path, message):
     await websocket.send(message)
 
 
-if __name__ == "__main__":
+def run_find_map():
+    dimension = dimensions[2]
+    start = time.perf_counter_ns()
+    result = asyncio.run(find_map(dimension))
+    # asyncio.get_event_loop().run_forever()
+
+
+def run_web_server():
     log.info(f"current directory: {os.getcwd()}")
     port = 27900
     log.info(f"starting WS on port {port}")
@@ -265,8 +293,6 @@ if __name__ == "__main__":
     asyncio.get_event_loop().run_until_complete(start_server)
     asyncio.get_event_loop().run_forever()
 
-    # dimension = dimensions[2]
-    # start = time.perf_counter_ns()
-    # future = asyncio.ensure_future(find_map(dimension))
-    # future.add_done_callback(lambda f: find_map_callback(None, f, processing, start))
-    # asyncio.get_event_loop().run_forever()
+
+if __name__ == "__main__":
+    run_web_server()
