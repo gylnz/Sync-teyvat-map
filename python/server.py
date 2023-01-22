@@ -35,7 +35,7 @@ class Dimension:
 
 
 class ImgDescriptor:
-    def __init__(self, keypoint, descriptor: cv2.UMat):
+    def __init__(self, keypoint: cv2.KeyPoint, descriptor: cv2.UMat):
         self.keypoint = keypoint
         self.descriptor = descriptor
 
@@ -95,6 +95,11 @@ def get_descriptors(name: str) -> ImgDescriptor:
     map_img_keypoints = json.load(map_img_keypoints_file)
     map_img_keypoints_file.close()
 
+    for i, p in enumerate(map_img_keypoints):
+        map_img_keypoints[i] = cv2.KeyPoint(x=p["pt"]["x"], y=p["pt"]["y"],
+                                            size=p["size"], angle=p["angle"],
+                                            response=p["response"], octave=p["octave"], class_id=p["class_id"])
+
     map_img_descriptors_file = open(f"{resources_path}data\\{name}ImgDescriptors.dat")
     map_img_descriptors = json.load(map_img_descriptors_file)
     map_img_descriptors_file.close()
@@ -103,6 +108,15 @@ def get_descriptors(name: str) -> ImgDescriptor:
 
     descriptors[name] = ImgDescriptor(map_img_keypoints, map_img_descriptors)
     return descriptors[name]
+
+
+def tan_keypoint(keypoint_i: cv2.KeyPoint, keypoint_j: cv2.KeyPoint):
+    map_rad_y = (keypoint_i.pt[1] -
+                 keypoint_j.pt[1])
+    map_rad_x = (keypoint_i.pt[0] -
+                 keypoint_j.pt[0])
+
+    return math.atan2(map_rad_y, map_rad_x)
 
 
 async def find_map(dimension: Dimension):
@@ -135,6 +149,10 @@ async def find_map(dimension: Dimension):
     target_img_keypoints = akaze.detect(target_img)
     target_img_descriptors = akaze.compute(target_img, target_img_keypoints)
 
+    # output_image = cv2.drawKeypoints(target_img, target_img_keypoints, 0, (0, 255, 0),
+    #                                  flags=cv2.DRAW_MATCHES_FLAGS_DEFAULT)
+    # imshow(preview_name, output_image)
+
     descriptor = get_descriptors(dimension.name)
     map_img_keypoints = descriptor.keypoint
     map_img_descriptors = descriptor.descriptor
@@ -150,6 +168,12 @@ async def find_map(dimension: Dimension):
     best_n = 40
     best_matches = sorted(matches, key=lambda x: x.distance)[:best_n]
 
+    # imgB = cv2.imread(f"{resources_path}img\\map.png")
+    # matched_image = cv2.drawMatches(target_img, target_img_keypoints, imgB, map_img_keypoints, best_matches, None, flags=2)
+    # matched_image = cv2.resize(matched_image, (1920, 1080))
+    # cv2.imshow("Match", matched_image)
+    # cv2.waitKey(0)
+
     result_matches = []
     for i in range(len(best_matches) - 1):
         min_matches = MinMatches(360, best_matches[i])
@@ -157,19 +181,11 @@ async def find_map(dimension: Dimension):
             if i == j:
                 continue
 
-            map_rad_y = (map_img_keypoints[best_matches[i].trainIdx]["pt"]["y"] -
-                         map_img_keypoints[best_matches[j].trainIdx]["pt"]["y"])
-            map_rad_x = (map_img_keypoints[best_matches[i].trainIdx]["pt"]["x"] -
-                         map_img_keypoints[best_matches[j].trainIdx]["pt"]["x"])
+            map_rad = tan_keypoint(map_img_keypoints[best_matches[i].trainIdx],
+                                   map_img_keypoints[best_matches[j].trainIdx])
 
-            map_rad = math.atan2(map_rad_y, map_rad_x)
-
-            target_rad_y = (target_img_keypoints[best_matches[i].queryIdx].pt[1] - target_img_keypoints[
-                best_matches[j].queryIdx].pt[1])
-            target_rad_x = (target_img_keypoints[best_matches[i].queryIdx].pt[0] - target_img_keypoints[
-                best_matches[j].queryIdx].pt[0])
-
-            target_rad = math.atan2(target_rad_y, target_rad_x)
+            target_rad = tan_keypoint(target_img_keypoints[best_matches[i].queryIdx],
+                                      target_img_keypoints[best_matches[j].queryIdx])
 
             map_deg = (map_rad * (180 / math.pi)) % 360
             target_deg = (target_rad * (180 / math.pi)) % 360
@@ -194,10 +210,10 @@ async def find_map(dimension: Dimension):
         return
     result_matches = result_matches[:2]
 
-    map_key_x = map_img_keypoints[result_matches[0].trainIdx]["pt"]["x"] - \
-                map_img_keypoints[result_matches[1].trainIdx]["pt"]["x"]
-    map_key_y = map_img_keypoints[result_matches[0].trainIdx]["pt"]["y"] - \
-                map_img_keypoints[result_matches[1].trainIdx]["pt"]["y"]
+    map_key_x = map_img_keypoints[result_matches[0].trainIdx].pt[0] - \
+                map_img_keypoints[result_matches[1].trainIdx].pt[0]
+    map_key_y = map_img_keypoints[result_matches[0].trainIdx].pt[1] - \
+                map_img_keypoints[result_matches[1].trainIdx].pt[1]
 
     target_key_x = target_img_keypoints[result_matches[0].queryIdx].pt[0] - \
                    target_img_keypoints[result_matches[1].queryIdx].pt[0]
@@ -215,8 +231,8 @@ async def find_map(dimension: Dimension):
     ]), mag)
 
     res = np.add(res, np.array([
-        map_img_keypoints[result_matches[0].trainIdx]["pt"]["x"],
-        map_img_keypoints[result_matches[0].trainIdx]["pt"]["y"]
+        map_img_keypoints[result_matches[0].trainIdx].pt[0],
+        map_img_keypoints[result_matches[0].trainIdx].pt[1]
     ]))
 
     x, y = res
@@ -295,4 +311,5 @@ def run_web_server():
 
 
 if __name__ == "__main__":
+    # run_find_map()
     run_web_server()
