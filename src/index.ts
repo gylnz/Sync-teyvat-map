@@ -1,46 +1,77 @@
 // @ts-ignore
-import * as opencvBuild from '@u4/opencv-build'
-import { app, BrowserWindow, dialog, session, shell } from 'electron'
+import { app, BrowserWindow, dialog, session, shell, screen } from 'electron'
 import * as Log from 'electron-log'
+import Store from 'electron-store';
 import { autoUpdater } from 'electron-updater'
 import { Worker } from 'worker_threads'
+import { spawn, ChildProcessWithoutNullStreams } from 'child_process'
+import * as process from "process";
+import BrowserWindowConstructorOptions = Electron.BrowserWindowConstructorOptions;
 
-process.env.OPENCV_BIN_DIR = new opencvBuild.OpenCVBuildEnv().opencvBinDir
-process.env.path += ';' + new opencvBuild.OpenCVBuildEnv().opencvBinDir
-
+const store = new Store()
 Log.transports.file.level = 'info'
 autoUpdater.logger = Log
 
 const homePath = __dirname.split('dist')[0]
 const resourcesPath = homePath.split('app')[0]
-const server = new Worker(homePath + 'dist\\server.js', {
-  env: {
-    OPENCV_BIN_DIR: new opencvBuild.OpenCVBuildEnv().opencvBinDir,
-    path: process.env.path,
-  },
-})
 
-process.on('uncaughtException', (err) => {
-  Log.error(err)
-  app.quit()
-})
+class ServerProcess {
+  proc: ChildProcessWithoutNullStreams | undefined;
 
-if (require('electron-squirrel-startup') || !app.requestSingleInstanceLock()) {
-  app.quit()
-  process.exit()
+  constructor() {
+  }
+
+  start() {
+    this.proc = spawn(homePath + 'python\\venv\\Scripts\\python.exe',
+        [homePath + 'python\\server.py'], {cwd: homePath + 'python'});
+    this.proc.stdout.on('data', (data: Buffer) => {
+      let str = data.toString().replace(/\r?\n$/, "")
+      console.log(str);
+    });
+    this.proc.stderr.on('data', (data: Buffer) => {
+      let str = data.toString().replace(/\r?\n$/, "")
+      console.error(str);
+    });
+  }
+
+  stop() {
+    if (this.proc) {
+      this.proc.kill()
+    }
+  }
 }
+
+const server = new ServerProcess()
+server.start()
 
 const deploy = async () => {
   await session.defaultSession.loadExtension(resourcesPath + 'extensions', {
     allowFileAccess: true,
   })
-  const win = new BrowserWindow({
+  let options: BrowserWindowConstructorOptions = {
     show: false,
     title: `パイモンが地図動かしてくれるヤツ ver.${app.getVersion()}`,
-  })
-  void win.loadURL('https://act.hoyolab.com/ys/app/interactive-map/index.html')
+  }
+
+  // @ts-ignore
+  let bounds:{x:number, y:number, width:number, height:number} = store.get('winBounds')
+  console.log(bounds)
+  Object.assign(options, bounds)
+
+  const win = new BrowserWindow(options)
+  void win.loadURL('https://act.hoyolab.com/ys/app/interactive-map/index.html?lang=en-us#/map/2?shown_types=&center=2798.50,-3528.00&zoom=0.00')
   win.on('ready-to-show', () => {
     win.show()
+  })
+  win.on('close', () => {
+    let bounds = win.getBounds()
+    console.log(bounds)
+    if (bounds.x > 1900) {
+      bounds.width = bounds.width * 0.8
+      bounds.height = bounds.height * 0.8
+      console.log(bounds)
+    }
+    store.set('winBounds', bounds)
   })
   win.on('page-title-updated', (evt) => {
     evt.preventDefault()
@@ -91,6 +122,6 @@ app.on('browser-window-created', (e, win) => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
-    void server.terminate()
+    server.stop()
   }
 })

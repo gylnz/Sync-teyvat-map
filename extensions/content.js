@@ -5,7 +5,7 @@ const stopImgURL = chrome.runtime.getURL('img/stop.png')
 const twitterIconURL = chrome.runtime.getURL('img/twitter-icon.png')
 let pauseSyncFlag = false
 let oldDimension = "2"
-let updateInterval = 2000
+let updateInterval = 4000
 let intervalId = setInterval(() => {}, 1000)
 
 const setUp = () =>{
@@ -59,7 +59,9 @@ sock.addEventListener('message', (e) => {
 })
 
 sock.addEventListener('close', (e) => {
+  console.log(e)
 })
 
 sock.addEventListener('error', (e) => {
+  console.log(e)
 })

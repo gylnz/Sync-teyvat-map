@@ -5,8 +5,9 @@
   "description": "パイモンが地図動かしてくれるヤツ",
   "scripts": {
     "opencv-rebuild": "build-opencv --electron build",
-    "electron-rebuild": "electron-rebuild -w opencv4nodejs",
+    "electron-rebuild": "electron-rebuild",
     "start": "npm run compile && electron-forge start",
+    "electron-start": "electron-forge start",
     "create-data": "npm run compile && electron dist/createDat.js",
     "build-publish": "npm run compile && electron-builder --win --x64 --publish always",
     "build": "npm run compile && electron-builder --win --x64",
@@ -21,9 +22,9 @@
   "author": "Rollphes",
   "license": "ISC",
   "dependencies": {
-    "@u4/opencv4nodejs": "^6.2.5",
     "electron-log": "^4.4.8",
     "electron-squirrel-startup": "^1.0.0",
+    "electron-store": "^8.1.0",
     "electron-updater": "^5.3.0",
     "fs": "^0.0.1-security",
     "node-loader": "^2.0.0",
