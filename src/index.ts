@@ -22,8 +22,8 @@ class ServerProcess {
   }
 
   start() {
-    this.proc = spawn(resourcesPath + 'python\\venv\\Scripts\\python.exe',
-        [resourcesPath + 'python\\server.py'], {cwd: resourcesPath + 'python'});
+    this.proc = spawn(resourcesPath + 'teyvatpy\\venv\\Scripts\\python.exe',
+        [resourcesPath + 'teyvatpy\\server.py'], {cwd: resourcesPath + 'teyvatpy'});
     this.proc.stdout.on('data', (data: Buffer) => {
       let str = data.toString().replace(/\r?\n$/, "")
       console.log(str);
