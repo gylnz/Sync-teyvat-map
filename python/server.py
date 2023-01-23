@@ -147,20 +147,19 @@ async def find_map(dimension: Dimension):
 
     # Target Image Keypoints and Descriptors
     akaze = cv2.AKAZE_create()
-    target_img_keypoints = akaze.detect(target_img)
-    target_img_descriptors = akaze.compute(target_img, target_img_keypoints)
+    target_keypoints, target_descriptors = akaze.detectAndCompute(target_img, None)
 
-    # output_image = cv2.drawKeypoints(target_img, target_img_keypoints, 0, (0, 255, 0),
+    # output_image = cv2.drawKeypoints(target_img, target_keypoints, 0, (0, 255, 0),
     #                                  flags=cv2.DRAW_MATCHES_FLAGS_DEFAULT)
     # imshow(preview_name, output_image)
 
     descriptor = get_descriptors(dimension.name)
-    map_img_keypoints = descriptor.keypoint
-    map_img_descriptors = descriptor.descriptor
+    map_keypoints = descriptor.keypoint
+    map_descriptors = descriptor.descriptor
 
     # Brute-Force Matcher
     bf = cv2.BFMatcher(cv2.NORM_HAMMING2)
-    matches = bf.match(target_img_descriptors[1], map_img_descriptors)
+    matches = bf.match(target_descriptors, map_descriptors)
 
     if len(matches) == 0:
         return
@@ -176,11 +175,11 @@ async def find_map(dimension: Dimension):
             if i == j:
                 continue
 
-            map_rad = tan_keypoint(map_img_keypoints[best_matches[i].trainIdx],
-                                   map_img_keypoints[best_matches[j].trainIdx])
+            map_rad = tan_keypoint(map_keypoints[best_matches[i].trainIdx],
+                                   map_keypoints[best_matches[j].trainIdx])
 
-            target_rad = tan_keypoint(target_img_keypoints[best_matches[i].queryIdx],
-                                      target_img_keypoints[best_matches[j].queryIdx])
+            target_rad = tan_keypoint(target_keypoints[best_matches[i].queryIdx],
+                                      target_keypoints[best_matches[j].queryIdx])
 
             map_deg = (map_rad * (180 / math.pi)) % 360
             target_deg = (target_rad * (180 / math.pi)) % 360
@@ -202,7 +201,7 @@ async def find_map(dimension: Dimension):
         result_matches.append(min_matches.descriptor_match_j)
 
     # imgB = cv2.imread(f"{resources_path}img\\map.png")
-    # matched_image = cv2.drawMatches(target_img, target_img_keypoints, imgB, map_img_keypoints, result_matches, None, flags=4)
+    # matched_image = cv2.drawMatches(target_img, target_keypoints, imgB, map_keypoints, result_matches, None, flags=4)
     # # matched_image = cv2.resize(matched_image, (1920, 1080))
     # plt.imshow(cv2.cvtColor(matched_image.get(), cv2.COLOR_BGR2RGB))
     # plt.show()
@@ -211,15 +210,15 @@ async def find_map(dimension: Dimension):
         return
     result_matches = result_matches[:2]
 
-    map_key_x = map_img_keypoints[result_matches[0].trainIdx].pt[0] - \
-                map_img_keypoints[result_matches[1].trainIdx].pt[0]
-    map_key_y = map_img_keypoints[result_matches[0].trainIdx].pt[1] - \
-                map_img_keypoints[result_matches[1].trainIdx].pt[1]
+    map_key_x = map_keypoints[result_matches[0].trainIdx].pt[0] - \
+                map_keypoints[result_matches[1].trainIdx].pt[0]
+    map_key_y = map_keypoints[result_matches[0].trainIdx].pt[1] - \
+                map_keypoints[result_matches[1].trainIdx].pt[1]
 
-    target_key_x = target_img_keypoints[result_matches[0].queryIdx].pt[0] - \
-                   target_img_keypoints[result_matches[1].queryIdx].pt[0]
-    target_rad_y = target_img_keypoints[result_matches[0].queryIdx].pt[1] - \
-                   target_img_keypoints[result_matches[1].queryIdx].pt[1]
+    target_key_x = target_keypoints[result_matches[0].queryIdx].pt[0] - \
+                   target_keypoints[result_matches[1].queryIdx].pt[0]
+    target_rad_y = target_keypoints[result_matches[0].queryIdx].pt[1] - \
+                   target_keypoints[result_matches[1].queryIdx].pt[1]
 
     mag = (
             np.linalg.norm(np.array([map_key_x, map_key_y], dtype=float)) /
@@ -227,13 +226,13 @@ async def find_map(dimension: Dimension):
     )
 
     res = np.multiply(np.array([
-        300 - target_img_keypoints[result_matches[0].queryIdx].pt[0],
-        300 - target_img_keypoints[result_matches[0].queryIdx].pt[1]
+        300 - target_keypoints[result_matches[0].queryIdx].pt[0],
+        300 - target_keypoints[result_matches[0].queryIdx].pt[1]
     ]), mag)
 
     res = np.add(res, np.array([
-        map_img_keypoints[result_matches[0].trainIdx].pt[0],
-        map_img_keypoints[result_matches[0].trainIdx].pt[1]
+        map_keypoints[result_matches[0].trainIdx].pt[0],
+        map_keypoints[result_matches[0].trainIdx].pt[1]
     ]))
 
     x, y = res
