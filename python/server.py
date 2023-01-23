@@ -35,10 +35,10 @@ class Dimension:
         self.y = y
 
 
-class ImgDescriptor:
-    def __init__(self, keypoint: List[cv2.KeyPoint], descriptor: cv2.UMat):
-        self.keypoint = keypoint
-        self.descriptor = descriptor
+class ImgFeatures:
+    def __init__(self, keypoints: List[cv2.KeyPoint], descriptors: cv2.UMat):
+        self.keypoints = keypoints
+        self.descriptors = descriptors
 
 
 def setup_custom_logger(name):
@@ -63,7 +63,7 @@ dimensions = {
     7: Dimension("enkanomiya", 1861, 1783),
     9: Dimension("sougan", 2027, 1958)
 }
-descriptors = {}
+img_features = {}
 clientDimension = '2'
 resources_path = '../'
 
@@ -87,9 +87,9 @@ def txtshow(text: str):
     # cv2.destroyAllWindows()
 
 
-def get_descriptors(name: str) -> ImgDescriptor:
-    if name in descriptors:
-        return descriptors[name]
+def get_img_features(name: str) -> ImgFeatures:
+    if name in img_features:
+        return img_features[name]
 
     # Map Image Keypoints and Descriptors
     map_img_keypoints_file = open(f"{resources_path}data\\{name}ImgKeyPoints.dat")
@@ -107,8 +107,8 @@ def get_descriptors(name: str) -> ImgDescriptor:
     map_img_descriptors = np.array(map_img_descriptors, dtype=np.uint8)
     map_img_descriptors = cv2.UMat(map_img_descriptors)
 
-    descriptors[name] = ImgDescriptor(map_img_keypoints, map_img_descriptors)
-    return descriptors[name]
+    img_features[name] = ImgFeatures(map_img_keypoints, map_img_descriptors)
+    return img_features[name]
 
 
 def tan_keypoint(keypoint_i: cv2.KeyPoint, keypoint_j: cv2.KeyPoint):
@@ -153,9 +153,9 @@ async def find_map(dimension: Dimension):
     #                                  flags=cv2.DRAW_MATCHES_FLAGS_DEFAULT)
     # imshow(preview_name, output_image)
 
-    descriptor = get_descriptors(dimension.name)
-    map_keypoints = descriptor.keypoint
-    map_descriptors = descriptor.descriptor
+    descriptor = get_img_features(dimension.name)
+    map_keypoints = descriptor.keypoints
+    map_descriptors = descriptor.descriptors
 
     # Brute-Force Matcher
     bf = cv2.BFMatcher(cv2.NORM_HAMMING2)
