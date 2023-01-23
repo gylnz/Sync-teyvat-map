@@ -17,11 +17,7 @@ class WindowCapture:
 
     # constructor
     def __init__(self, window_name):
-        # find the handle for the window we want to capture
-        self.hwnd = win32gui.FindWindow(None, window_name)
-        if not self.hwnd:
-            print(f"Window not found: {window_name}")
-            # raise Exception('Window not found: {}'.format(window_name))
+        if window_name is None:
             self.w = 1920
             self.h = 1080
             self.cropped_x = 0
@@ -29,6 +25,11 @@ class WindowCapture:
             self.offset_x = 0
             self.offset_y = 0
             return
+        # find the handle for the window we want to capture
+        self.hwnd = win32gui.FindWindow(None, window_name)
+
+        if self.hwnd is None:
+            raise Exception('Window not found: {}'.format(window_name))
 
         # get the window size
         window_rect = win32gui.GetWindowRect(self.hwnd)

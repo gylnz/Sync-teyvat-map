@@ -17,7 +17,7 @@ from typing import List
 # from websockets import WebSocketServer
 
 processing = []
-wincap = WindowCapture('xCalculator')
+wincap = WindowCapture(None)
 
 
 class MinMatches:
