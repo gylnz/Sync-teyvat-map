@@ -9,6 +9,7 @@ import math
 import sys
 import logging
 import os
+import matplotlib.pyplot as plt
 import cProfile
 
 from windowcapture import WindowCapture
@@ -35,7 +36,7 @@ class Dimension:
 
 
 class ImgDescriptor:
-    def __init__(self, keypoint: cv2.KeyPoint, descriptor: cv2.UMat):
+    def __init__(self, keypoint: List[cv2.KeyPoint], descriptor: cv2.UMat):
         self.keypoint = keypoint
         self.descriptor = descriptor
 
@@ -122,7 +123,7 @@ def tan_keypoint(keypoint_i: cv2.KeyPoint, keypoint_j: cv2.KeyPoint):
 async def find_map(dimension: Dimension):
     # Screenshot
     # os.system(f"screenshot {resources_path}img\\t.png")
-    # target_img_ori = cv2.imread(f"{resources_path}img\\t.png", cv2.IMREAD_GRAYSCALE)
+    # target_img_ori = cv2.imread(f"D:/data/projects/data/5.png", cv2.IMREAD_GRAYSCALE)
 
     target_img_ori = wincap.get_screenshot()
     target_img_ori = cv2.cvtColor(target_img_ori, cv2.COLOR_BGR2GRAY)
@@ -168,12 +169,6 @@ async def find_map(dimension: Dimension):
     best_n = 40
     best_matches = sorted(matches, key=lambda x: x.distance)[:best_n]
 
-    # imgB = cv2.imread(f"{resources_path}img\\map.png")
-    # matched_image = cv2.drawMatches(target_img, target_img_keypoints, imgB, map_img_keypoints, best_matches, None, flags=2)
-    # matched_image = cv2.resize(matched_image, (1920, 1080))
-    # cv2.imshow("Match", matched_image)
-    # cv2.waitKey(0)
-
     result_matches = []
     for i in range(len(best_matches) - 1):
         min_matches = MinMatches(360, best_matches[i])
@@ -205,6 +200,12 @@ async def find_map(dimension: Dimension):
         if min_matches.descriptor_match_j is None or min_matches.descriptor_match_j.distance > 50:
             continue
         result_matches.append(min_matches.descriptor_match_j)
+
+    # imgB = cv2.imread(f"{resources_path}img\\map.png")
+    # matched_image = cv2.drawMatches(target_img, target_img_keypoints, imgB, map_img_keypoints, result_matches, None, flags=4)
+    # # matched_image = cv2.resize(matched_image, (1920, 1080))
+    # plt.imshow(cv2.cvtColor(matched_image.get(), cv2.COLOR_BGR2RGB))
+    # plt.show()
 
     if len(result_matches) < 2:
         return
