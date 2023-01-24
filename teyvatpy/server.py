@@ -10,7 +10,8 @@ import sys
 import logging
 import os
 
-from createBin import load_bin_file
+from imgfeature import init_feature, filter_matches, draw_inliers
+from createbin import load_bin_file
 from windowcapture import WindowCapture
 from typing import List
 
@@ -18,6 +19,12 @@ from typing import List
 
 processing = []
 wincap = WindowCapture(None)
+detector = None
+matcher = None
+
+
+def Object(**kwargs):
+    return type("Object", (), kwargs)
 
 
 class MinMatches:
@@ -128,11 +135,10 @@ async def find_map(dimension: Dimension):
     # asyncio.create_task(imshow_async(preview_name, target_img))
 
     target_img = cv2.UMat(target_img)
-    target_img = cv2.resize(target_img, (600, 600))
+    # target_img = cv2.resize(target_img, (600, 600))
 
     # Target Image Keypoints and Descriptors
-    akaze = cv2.AKAZE_create()
-    target_keypoints, target_descriptors = akaze.detectAndCompute(target_img, None)
+    target_keypoints, target_descriptors = detector.detectAndCompute(target_img, None)
 
     # output_image = cv2.drawKeypoints(target_img, target_keypoints, 0, (0, 255, 0),
     #                                  flags=cv2.DRAW_MATCHES_FLAGS_DEFAULT)
@@ -142,48 +148,25 @@ async def find_map(dimension: Dimension):
     map_keypoints = descriptor.keypoints
     map_descriptors = descriptor.descriptors
 
-    # Brute-Force Matcher
-    bf = cv2.BFMatcher(cv2.NORM_HAMMING2)
-    matches = bf.match(target_descriptors, map_descriptors)
+    log.info('matching...')
+    inliers = 0
+    matched = 0
+    raw_matches = matcher.knnMatch(target_descriptors, trainDescriptors=map_descriptors, k=2)
+    p1, p2, kp_pairs = filter_matches(target_keypoints, map_keypoints, raw_matches)
+    if len(p1) >= 4:
+        H, status = cv2.findHomography(p1, p2, cv2.RANSAC, 5.0)
+        inliers = np.sum(status)
+        matched = len(status)
+        log.info('%d / %d  inliers/matched' % (inliers, matched))
+    else:
+        H, status = None, None
+        log.info('%d matches found, not enough for homography estimation' % len(p1))
+        return None, inliers, matched
 
-    if len(matches) == 0:
-        return
-
-    # Best Matches
-    best_n = 40
-    best_matches = sorted(matches, key=lambda x: x.distance)[:best_n]
-
-    result_matches = []
-    for i in range(len(best_matches) - 1):
-        min_matches = MinMatches(360, best_matches[i])
-        for j in range(i + 1, len(best_matches)):
-            if i == j:
-                continue
-
-            map_rad = tan_keypoint(map_keypoints[best_matches[i].trainIdx],
-                                   map_keypoints[best_matches[j].trainIdx])
-
-            target_rad = tan_keypoint(target_keypoints[best_matches[i].queryIdx],
-                                      target_keypoints[best_matches[j].queryIdx])
-
-            map_deg = (map_rad * (180 / math.pi)) % 360
-            target_deg = (target_rad * (180 / math.pi)) % 360
-            map_deg = map_deg if map_deg >= 0 else 360 + map_deg
-            target_deg = target_deg if target_deg >= 0 else 360 + target_deg
-            diff_deg = abs(map_deg - target_deg)
-            if math.isnan(diff_deg):
-                continue
-            if diff_deg < min_matches.min_deg:
-                min_matches.min_deg = diff_deg
-                min_matches.descriptor_match_j = best_matches[j]
-
-        if min_matches.min_deg > 0.1 or min_matches.descriptor_match_i.distance > 50:
-            continue
-        result_matches.append(min_matches.descriptor_match_i)
-
-        if min_matches.descriptor_match_j is None or min_matches.descriptor_match_j.distance > 50:
-            continue
-        result_matches.append(min_matches.descriptor_match_j)
+    # map_img = cv2.imread(f"F:/data/p/Sync-teyvat-map/img/map.png", cv2.IMREAD_GRAYSCALE)
+    # explore_match('find_obj', target_img.get(), map_img, kp_pairs, status, H)
+    vis = draw_inliers(target_img.get(), kp_pairs, status)
+    imshow(preview_name, vis)
 
     # imgB = cv2.imread(f"{resources_path}img\\map.png")
     # matched_image = cv2.drawMatches(target_img, target_keypoints, imgB, map_keypoints, result_matches, None, flags=4)
@@ -191,50 +174,29 @@ async def find_map(dimension: Dimension):
     # plt.imshow(cv2.cvtColor(matched_image.get(), cv2.COLOR_BGR2RGB))
     # plt.show()
 
-    if len(result_matches) < 2:
-        return
-    result_matches = result_matches[:2]
-
-    map_key_x = map_keypoints[result_matches[0].trainIdx].pt[0] - \
-                map_keypoints[result_matches[1].trainIdx].pt[0]
-    map_key_y = map_keypoints[result_matches[0].trainIdx].pt[1] - \
-                map_keypoints[result_matches[1].trainIdx].pt[1]
-
-    target_key_x = target_keypoints[result_matches[0].queryIdx].pt[0] - \
-                   target_keypoints[result_matches[1].queryIdx].pt[0]
-    target_rad_y = target_keypoints[result_matches[0].queryIdx].pt[1] - \
-                   target_keypoints[result_matches[1].queryIdx].pt[1]
-
-    mag = (
-            np.linalg.norm(np.array([map_key_x, map_key_y], dtype=float)) /
-            np.linalg.norm(np.array([target_key_x, target_rad_y], dtype=float))
-    )
-
-    res = np.multiply(np.array([
-        300 - target_keypoints[result_matches[0].queryIdx].pt[0],
-        300 - target_keypoints[result_matches[0].queryIdx].pt[1]
-    ]), mag)
-
-    res = np.add(res, np.array([
-        map_keypoints[result_matches[0].trainIdx].pt[0],
-        map_keypoints[result_matches[0].trainIdx].pt[1]
-    ]))
-
-    x, y = res
+    h1, w1 = target_img.get().shape[:2]
+    corners = np.float32([[0, 0], [w1, 0], [w1, h1], [0, h1]])
+    corners = np.int32(cv2.perspectiveTransform(corners.reshape(1, -1, 2), H).reshape(-1, 2))
+    px = [p[0] for p in corners]
+    py = [p[1] for p in corners]
+    x, y = (sum(px) / len(corners), sum(py) / len(corners))
 
     msg = f"center={round(y - dimension.y, 2)},{round(x - dimension.x, 2)}"
-    return msg
+    return msg, inliers, matched
 
 
 def find_map_callback(websocket: websockets.WebSocketServerProtocol, f, processing: List[bool], start: int):
     processing.clear()
     try:
-        center = f.result()
+        center, inliers, matched = f.result()
+        center_msg = center
+        if center_msg is not None:
+            center_msg = center_msg.split('=')[1]
         elapsed = time.perf_counter_ns() - start
-        msg = f"[{center}] t:{elapsed / (1000 * 1000 * 1000)}s"
+        msg = f"[{center_msg}][{inliers}/{matched}][{round(elapsed / (1000 * 1000 * 1000), 3)}s]"
         log.info(msg)
         txtshow(msg)
-        if center is not None:
+        if center is not None and websocket is not None:
             asyncio.create_task(websocket.send(center))
     except ValueError as e:
         log.error(e)
@@ -274,6 +236,7 @@ def run_find_map():
     dimension = dimensions[2]
     start = time.perf_counter_ns()
     result = asyncio.run(find_map(dimension))
+    find_map_callback(None, Object(result=lambda: result), [], start)
     # asyncio.get_event_loop().run_forever()
 
 
@@ -296,5 +259,7 @@ def run_web_server():
 
 
 if __name__ == "__main__":
+    detector, matcher = init_feature()
+
     # run_find_map()
     run_web_server()

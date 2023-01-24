@@ -4,23 +4,24 @@ import os
 import struct
 
 from typing import List
+from imgfeature import DETECTOR, init_feature
 
 
 keypoint_format = "dddddii"
 homePath = os.path.dirname(__file__).split('teyvatpy')[0]
-detector = cv2.AKAZE_create()
 
 
 def save_bin_file(name: str):
+    detector, _ = init_feature()
     map_img = cv2.imread(f"{homePath}/img/{name}.png", cv2.IMREAD_GRAYSCALE)
     keypoints, descriptors = detector.detectAndCompute(map_img, None)
-    write_keypoints(f"{homePath}/data/{name}ImgKeyPoints.bin", keypoints)
-    np.save(f"{homePath}/data/{name}ImgDescriptors", descriptors)
+    write_keypoints(f"{homePath}/data/{name}-{DETECTOR}-keypoints.bin", keypoints)
+    np.save(f"{homePath}/data/{name}-{DETECTOR}-descriptors", descriptors)
 
 
 def load_bin_file(name: str) -> (List[cv2.KeyPoint], np.ndarray):
-    keypoints = read_keypoints(f"{homePath}/data/{name}ImgKeyPoints.bin")
-    descriptors = np.load(f"{homePath}/data/{name}ImgDescriptors.npy")
+    keypoints = read_keypoints(f"{homePath}/data/{name}-{DETECTOR}-keypoints.bin")
+    descriptors = np.load(f"{homePath}/data/{name}-{DETECTOR}-descriptors.npy")
     return keypoints, descriptors
 
 

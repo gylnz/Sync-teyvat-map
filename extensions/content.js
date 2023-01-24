@@ -44,7 +44,7 @@ const setUp = () =>{
     // $("div.DeveloperTwitter").on('click', ()=> {
     //   window.open('https://twitter.com/rollphes')
     // })
-  }, 2000)
+  }, 5000)
 }
 setUp()
 
