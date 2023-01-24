@@ -1,3 +1,4 @@
+import getopt
 import time
 
 import cv2
@@ -21,6 +22,7 @@ processing = []
 wincap = WindowCapture(None)
 detector = None
 matcher = None
+static_img = None
 
 
 def Object(**kwargs):
@@ -113,12 +115,11 @@ def tan_keypoint(keypoint_i: cv2.KeyPoint, keypoint_j: cv2.KeyPoint):
 
 
 async def find_map(dimension: Dimension):
-    # Screenshot
-    # os.system(f"screenshot {resources_path}img\\t.png")
-    # target_img_ori = cv2.imread(f"D:/data/projects/data/5.png", cv2.IMREAD_GRAYSCALE)
-
-    target_img_ori = wincap.get_screenshot()
-    target_img_ori = cv2.cvtColor(target_img_ori, cv2.COLOR_BGR2GRAY)
+    if static_img is None:
+        target_img_ori = wincap.get_screenshot()
+        target_img_ori = cv2.cvtColor(target_img_ori, cv2.COLOR_BGR2GRAY)
+    else:
+        target_img_ori = static_img
 
     # Region of interest
     x = int(target_img_ori.shape[1] * 0.03125)
@@ -193,7 +194,7 @@ def find_map_callback(websocket: websockets.WebSocketServerProtocol, f, processi
         if center_msg is not None:
             center_msg = center_msg.split('=')[1]
         elapsed = time.perf_counter_ns() - start
-        msg = f"[{center_msg}][{inliers}/{matched}][{round(elapsed / (1000 * 1000 * 1000), 3)}s]"
+        msg = f"{center_msg}|{inliers}/{matched}|{round(elapsed / (1000 * 1000 * 1000), 3)}s"
         log.info(msg)
         txtshow(msg)
         if center is not None and websocket is not None:
@@ -233,6 +234,9 @@ async def on_message(websocket, path, message):
 
 
 def run_find_map():
+    global static_img
+    if use_static_img:
+        static_img = cv2.imread(f"D:/data/projects/data/5.png", cv2.IMREAD_GRAYSCALE)
     dimension = dimensions[2]
     start = time.perf_counter_ns()
     result = asyncio.run(find_map(dimension))
@@ -259,7 +263,27 @@ def run_web_server():
 
 
 if __name__ == "__main__":
+    try:
+        argv = sys.argv[1:]
+        opts, args = getopt.getopt(argv, "ts", ["test", "static"])
+    except getopt.GetoptError:
+        print('server.py -t')
+        sys.exit(2)
+
+    test_mode = False
+    use_static_img = False
+    for opt, arg in opts:
+        if opt == '-h':
+            print('test.py -t -s')
+            sys.exit()
+        elif opt in ("-t", "--test"):
+            test_mode = True
+        elif opt in ("-s", "--static"):
+            use_static_img = True
+
     detector, matcher = init_feature()
 
-    # run_find_map()
-    run_web_server()
+    if test_mode:
+        run_find_map()
+    else:
+        run_web_server()

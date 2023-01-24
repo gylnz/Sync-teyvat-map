@@ -6,7 +6,7 @@ const twitterIconURL = chrome.runtime.getURL('img/twitter-icon.png')
 const pinpointImgURL = chrome.runtime.getURL('img/pinpoint.png')
 let pauseSyncFlag = true
 let oldDimension = "2"
-let updateInterval = 4000
+let updateInterval = 2000
 let intervalId = setInterval(() => {}, 1000)
 
 const setUp = () =>{
