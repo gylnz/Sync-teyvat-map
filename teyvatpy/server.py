@@ -162,6 +162,9 @@ async def find_map(dimension: Dimension):
     else:
         H, status = None, None
         log.info('%d matches found, not enough for homography estimation' % len(p1))
+        if len(p1) > 0:
+            vis = draw_inliers(target_img.get(), kp_pairs, status, True)
+            imshow(preview_name, vis)
         return None, inliers, matched
 
     # map_img = cv2.imread(f"F:/data/p/Sync-teyvat-map/img/map.png", cv2.IMREAD_GRAYSCALE)

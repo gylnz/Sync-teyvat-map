@@ -1,10 +1,11 @@
-const sock = new WebSocket('ws://localhost:27900')
+let sock = createWebsocket()
 
 const playImgURL = chrome.runtime.getURL('img/play.png')
 const stopImgURL = chrome.runtime.getURL('img/stop.png')
 const twitterIconURL = chrome.runtime.getURL('img/twitter-icon.png')
 const pinpointImgURL = chrome.runtime.getURL('img/pinpoint.png')
 let pauseSyncFlag = true
+let pendingSend = false
 let oldDimension = "2"
 let updateInterval = 2000
 let intervalId = setInterval(() => {}, 1000)
@@ -24,7 +25,7 @@ const setUp = () =>{
         clearInterval(intervalId)
       }else{
         intervalId = setInterval(() => {
-          sock.send(location.hash.slice(6, 7))
+          wsSendRequest()
         }, updateInterval)
       }
     })
@@ -34,7 +35,14 @@ const setUp = () =>{
       <div class="tooltip tooltip--left">Match current location</div>
     </div>`))
     $("div.Pinpoint").on('click', ()=> {
-      sock.send(location.hash.slice(6, 7))
+      if (sock.readyState === WebSocket.CLOSED) {
+        pendingSend = true
+        sock = createWebsocket()
+      } else if (sock.readyState === WebSocket.OPEN) {
+        wsSendRequest()
+      } else {
+        console.error("ws not ready")
+      }
     })
     // $("div.mhy-map__action-btns").append($.parseHTML(`
     //   <div id="user-guide-sync" class="mhy-map__action-btn mhy-map__action-btn--routes DeveloperTwitter">
@@ -56,22 +64,34 @@ setInterval(()=>{
   oldDimension = thisDimension
 },1000)
 
-sock.addEventListener('open', (e) => {
-  if (pauseSyncFlag) return
-   intervalId = setInterval(() => {
-    sock.send(location.hash.slice(6, 7))
-   }, updateInterval)
-})
+function wsSendRequest() {
+  sock.send(location.hash.slice(6, 7))
+}
 
-sock.addEventListener('message', (e) => {
-  if (!e.data.match(/center/g)||!location.hash.match(/center/g)) return
-  location.hash = location.hash.replace(/center=.*(?=&)/,e.data)
-})
+function createWebsocket() {
+  const sock = new WebSocket('ws://localhost:27900')
 
-sock.addEventListener('close', (e) => {
-  console.log(e)
-})
+  sock.addEventListener('open', (e) => {
+    if (pendingSend) wsSendRequest();
+    if (pauseSyncFlag) return
+    intervalId = setInterval(() => {
+      wsSendRequest()
+    }, updateInterval)
+  })
 
-sock.addEventListener('error', (e) => {
-  console.log(e)
-})
+  sock.addEventListener('message', (e) => {
+    if (!e.data.match(/center/g)||!location.hash.match(/center/g)) return
+    location.hash = location.hash.replace(/center=.*(?=&)/,e.data)
+  })
+
+  sock.addEventListener('close', (e) => {
+    console.log(e)
+  })
+
+  sock.addEventListener('error', (e) => {
+    console.log(e)
+  })
+
+  return sock
+}
+

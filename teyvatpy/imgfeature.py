@@ -55,7 +55,7 @@ def filter_matches(kp1, kp2, matches, ratio=0.75):
     return p1, p2, list(kp_pairs)
 
 
-def draw_inliers(img1, kp_pairs, status=None):
+def draw_inliers(img1, kp_pairs, status=None, failed=False):
     h1, w1 = img1.shape[:2]
     vis = np.zeros((h1, w1), np.uint8)
     vis[:h1, :w1] = img1
@@ -70,6 +70,8 @@ def draw_inliers(img1, kp_pairs, status=None):
     green = (0, 255, 0)
     red = (0, 0, 255)
     kp_color = (51, 103, 236)
+    if failed:
+        green = red
     for (x1, y1), inlier in zip(p1, status):
         if inlier:
             col = green
